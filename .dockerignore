@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+
+# Node modules
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test results and reports
+test-results/
+playwright-report/
+reports/
+allure-results/
+allure-report/
+screenshots/
+.nyc_output/
+coverage/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+*.md
+docs/
+
+# CI/CD
+.github/
+
+# Logs
+logs/
+*.log

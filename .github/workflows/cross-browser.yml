@@ -1,0 +1,149 @@
+name: Cross Browser Testing
+
+on:
+  schedule:
+    # Run every Sunday at 1 AM
+    - cron: '0 1 * * 0'
+  workflow_dispatch:
+    inputs:
+      browsers:
+        description: 'Browsers to test (comma-separated: chromium,firefox,webkit)'
+        required: false
+        default: 'chromium,firefox,webkit'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        browser: [chromium, firefox, webkit]
+        exclude:
+          # WebKit doesn't work well on Windows
+          - os: windows-latest
+            browser: webkit
+    
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browser
+      run: npx playwright install --with-deps ${{ matrix.browser }}
+
+    - name: Run tests on ${{ matrix.browser }}
+      run: npx playwright test --project=${{ matrix.browser }}
+      env:
+        CI: true
+        TEST_ENV: staging
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.browser }}
+        path: test-results/
+        retention-days: 7
+
+  mobile-testing:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        device: ['mobile-chrome', 'mobile-safari']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Run mobile tests
+      run: npx playwright test --project=${{ matrix.device }}
+      env:
+        CI: true
+
+    - name: Upload mobile test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mobile-test-results-${{ matrix.device }}
+        path: test-results/
+        retention-days: 7
+
+  api-testing:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run API tests
+      run: npx playwright test --project=api
+      env:
+        CI: true
+        API_BASE_URL: ${{ secrets.API_URL }}
+        API_TOKEN: ${{ secrets.API_TOKEN }}
+
+    - name: Upload API test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: api-test-results
+        path: test-results/
+        retention-days: 7
+
+  report-status:
+    needs: [test, mobile-testing, api-testing]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        if [ "${{ needs.test.result }}" == "failure" ] || 
+           [ "${{ needs.mobile-testing.result }}" == "failure" ] || 
+           [ "${{ needs.api-testing.result }}" == "failure" ]; then
+          echo "Some tests failed"
+          exit 1
+        fi
+        echo "All tests passed"
+
+    - name: Send notification
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Cross-browser tests failed! Check the results.'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

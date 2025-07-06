@@ -1,0 +1,207 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests every day at 2 AM
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/4, 2/4, 3/4, 4/4]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Run type checking
+      run: npm run typecheck
+
+    - name: Run linting
+      run: npm run lint
+
+    - name: Run Playwright tests
+      run: npx playwright test --shard=${{ matrix.shard }}
+      env:
+        CI: true
+        TEST_ENV: staging
+        BASE_URL: ${{ secrets.STAGING_URL }}
+        API_BASE_URL: ${{ secrets.API_STAGING_URL }}
+        API_TOKEN: ${{ secrets.API_TOKEN }}
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report-${{ matrix.shard }}
+        path: playwright-report/
+        retention-days: 30
+
+    - name: Upload test videos
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-videos-${{ matrix.shard }}
+        path: test-results/
+        retention-days: 7
+
+  merge-reports:
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download reports
+      uses: actions/download-artifact@v4
+      with:
+        pattern: playwright-report-*
+        path: playwright-reports
+
+    - name: Merge reports
+      run: |
+        npm i -D @playwright/test
+        npx playwright merge-reports --reporter html ./playwright-reports
+
+    - name: Upload merged report
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+
+    - name: Deploy report to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./playwright-report
+
+  visual-regression:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install chromium
+
+    - name: Run visual tests
+      run: npx playwright test --project=visual
+      env:
+        CI: true
+
+    - name: Upload visual diff
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: visual-regression-diff
+        path: test-results/
+        retention-days: 7
+
+    - name: Comment PR
+      uses: actions/github-script@v7
+      if: failure()
+      with:
+        script: |
+          const artifact_url = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `Visual regression tests failed. [View artifacts](${artifact_url})`
+          });
+
+  accessibility:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install chromium
+
+    - name: Run accessibility tests
+      run: npx playwright test --project=a11y
+      env:
+        CI: true
+
+    - name: Upload accessibility report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: accessibility-report
+        path: reports/
+        retention-days: 30
+
+  performance:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install chromium
+
+    - name: Run performance tests
+      run: npx playwright test tests/performance
+      env:
+        CI: true
+
+    - name: Store performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: reports/performance/
+        retention-days: 90

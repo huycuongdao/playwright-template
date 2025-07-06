@@ -1,0 +1,136 @@
+name: Smoke Tests
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  smoke-tests:
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      run: npx playwright install chromium
+
+    - name: Set environment variables
+      run: |
+        if [ "${{ inputs.environment || github.event.deployment_status.environment }}" == "production" ]; then
+          echo "BASE_URL=${{ secrets.PRODUCTION_URL }}" >> $GITHUB_ENV
+          echo "API_BASE_URL=${{ secrets.API_PRODUCTION_URL }}" >> $GITHUB_ENV
+          echo "TEST_ENV=production" >> $GITHUB_ENV
+        else
+          echo "BASE_URL=${{ secrets.STAGING_URL }}" >> $GITHUB_ENV
+          echo "API_BASE_URL=${{ secrets.API_STAGING_URL }}" >> $GITHUB_ENV
+          echo "TEST_ENV=staging" >> $GITHUB_ENV
+        fi
+
+    - name: Run smoke tests
+      run: npx playwright test --grep @smoke --project=chromium
+      env:
+        CI: true
+        API_TOKEN: ${{ secrets.API_TOKEN }}
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: smoke-test-results
+        path: test-results/
+        retention-days: 7
+
+    - name: Create test summary
+      if: always()
+      run: |
+        echo "## Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "Environment: ${{ env.TEST_ENV }}" >> $GITHUB_STEP_SUMMARY
+        echo "Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        if [ -f "test-results/results.json" ]; then
+          echo "### Test Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat test-results/results.json | jq '.stats' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Notify deployment status
+      if: github.event_name == 'deployment_status'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const status = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+          const description = status === 'success' 
+            ? 'Smoke tests passed' 
+            : 'Smoke tests failed';
+          
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment.id,
+            state: status,
+            description: description,
+            environment_url: '${{ env.BASE_URL }}',
+            log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+          });
+
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Check application health
+      run: |
+        ENVIRONMENT="${{ inputs.environment || github.event.deployment_status.environment || 'staging' }}"
+        if [ "$ENVIRONMENT" == "production" ]; then
+          URL="${{ secrets.PRODUCTION_URL }}"
+        else
+          URL="${{ secrets.STAGING_URL }}"
+        fi
+        
+        echo "Checking health of $URL"
+        
+        # Check if site is up
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+        
+        if [ $HTTP_CODE -eq 200 ]; then
+          echo "✅ Health check passed"
+        else
+          echo "❌ Health check failed with status code: $HTTP_CODE"
+          exit 1
+        fi
+        
+        # Check response time
+        RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' "$URL")
+        echo "Response time: ${RESPONSE_TIME}s"
+        
+        # Fail if response time is too slow
+        if (( $(echo "$RESPONSE_TIME > 5" | bc -l) )); then
+          echo "❌ Response time is too slow"
+          exit 1
+        fi

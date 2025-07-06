@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-tests
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - TEST_ENV=${TEST_ENV:-local}
+      - BASE_URL=${BASE_URL:-https://playwright.dev}
+      - API_BASE_URL=${API_BASE_URL:-https://api.example.com}
+      - API_TOKEN=${API_TOKEN:-}
+      - HEADLESS=true
+    volumes:
+      - ./reports:/app/reports
+      - ./test-results:/app/test-results
+      - ./allure-results:/app/allure-results
+      - ./screenshots:/app/screenshots
+    working_dir: /app
+    command: npm test
+    networks:
+      - playwright-network
+
+  # Separate service for different test types
+  playwright-smoke:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-smoke
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - TEST_ENV=${TEST_ENV:-staging}
+      - BASE_URL=${BASE_URL:-https://staging.example.com}
+      - API_BASE_URL=${API_BASE_URL:-https://api-staging.example.com}
+      - API_TOKEN=${API_TOKEN:-}
+      - HEADLESS=true
+    volumes:
+      - ./reports:/app/reports
+      - ./test-results:/app/test-results
+    working_dir: /app
+    command: npm run test:smoke
+    networks:
+      - playwright-network
+
+  # Service for API tests only
+  playwright-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-api
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - API_BASE_URL=${API_BASE_URL:-https://api.example.com}
+      - API_TOKEN=${API_TOKEN:-}
+    volumes:
+      - ./reports:/app/reports
+      - ./test-results:/app/test-results
+    working_dir: /app
+    command: npm run test:api
+    networks:
+      - playwright-network
+
+  # Service for visual tests
+  playwright-visual:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-visual
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - TEST_ENV=${TEST_ENV:-local}
+      - BASE_URL=${BASE_URL:-https://playwright.dev}
+      - HEADLESS=true
+    volumes:
+      - ./reports:/app/reports
+      - ./test-results:/app/test-results
+    working_dir: /app
+    command: npm run test:visual
+    networks:
+      - playwright-network
+
+  # Allure reporting service
+  allure-report:
+    image: frankescobar/allure-docker-service
+    container_name: allure-report
+    environment:
+      CHECK_RESULTS_EVERY_SECONDS: 3
+      KEEP_HISTORY: 20
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./allure-results:/app/allure-results
+      - ./allure-reports:/app/default-reports
+    networks:
+      - playwright-network
+    profiles:
+      - reporting
+
+  # Nginx for serving reports
+  nginx-reports:
+    image: nginx:alpine
+    container_name: nginx-reports
+    ports:
+      - "8080:80"
+    volumes:
+      - ./reports:/usr/share/nginx/html/reports:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - playwright-network
+    profiles:
+      - reporting
+
+networks:
+  playwright-network:
+    driver: bridge
+
+volumes:
+  reports:
+  test-results:
+  allure-results:
+  allure-reports:
