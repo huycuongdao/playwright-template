@@ -445,6 +445,12 @@ The guides cover:
 - E2E, Visual, API, and Permission test generation
 - Project convention alignment and troubleshooting
 
+## 🐛 Known Issues
+
+- **[Known Issues Documentation](docs/KNOWN_ISSUES.md)**: Common issues and their solutions
+  - Concurrent user access in login tests
+  - Solutions for optimistic locking failures
+
 ## 🆘 Support
 
 - 📚 [Playwright Documentation](https://playwright.dev/)
