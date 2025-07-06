@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
-import { CustomReporter, setupAllureEnvironment } from './src/utils/reporter';
+import CustomReporter, { setupAllureEnvironment } from './src/utils/reporter';
 
 // Load environment variables based on the environment
 const environment = process.env.TEST_ENV || 'local';
@@ -155,7 +155,7 @@ const config = defineConfig({
   outputDir: 'test-results/',
 
   // Run your local dev server before starting the tests
-  webServer: process.env.USE_WEB_SERVER ? {
+  webServer: process.env.USE_WEB_SERVER === 'true' ? {
     command: process.env.WEB_SERVER_COMMAND || 'npm run dev',
     url: process.env.WEB_SERVER_URL || 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,

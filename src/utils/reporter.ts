@@ -2,7 +2,7 @@ import { Reporter, TestCase, TestResult, TestStep, FullConfig, Suite } from '@pl
 import fs from 'fs';
 import path from 'path';
 
-export class CustomReporter implements Reporter {
+export default class CustomReporter implements Reporter {
   private results: any[] = [];
   private startTime!: Date;
   private config!: FullConfig;
