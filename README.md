@@ -411,6 +411,39 @@ The template includes validation in the `prepare` script that runs:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 📚 Extending This Template
+
+### Adding New Pages/Features
+
+This template includes comprehensive guides for adding new pages and features:
+
+- **📖 [Complete Guide](docs/NEW_FEATURE_GUIDE.md)**: Step-by-step instructions for adding new pages/features
+- **⚡ [Quick Prompt](docs/QUICK_PROMPT.md)**: Copy-paste prompt template for manual implementation
+- **🤖 [MCP Prompt](docs/MCP_PROMPT.md)**: AI-assisted exploration and test generation
+- **🔧 [Detailed Prompt](docs/ADD_NEW_FEATURE_PROMPT.md)**: Full prompt template with examples and inputs
+
+### Usage:
+
+**Manual Approach:**
+1. Copy the prompt from `docs/QUICK_PROMPT.md`
+2. Fill in your feature details
+3. Run the prompt to generate all necessary files
+
+**AI-Assisted Approach:**
+1. Set up MCP configuration (one-time setup in `docs/MCP_PROMPT.md`)
+2. Copy the MCP exploration prompt
+3. Provide your application URL and let AI explore and generate tests
+
+**Both approaches:**
+4. Follow the troubleshooting guide if needed
+
+The guides cover:
+- **Manual Implementation**: Step-by-step page object and test creation
+- **AI-Assisted Generation**: MCP setup and automated exploration
+- Page Object Model creation and test fixtures integration
+- E2E, Visual, and API test generation
+- Project convention alignment and troubleshooting
+
 ## 🆘 Support
 
 - 📚 [Playwright Documentation](https://playwright.dev/)
