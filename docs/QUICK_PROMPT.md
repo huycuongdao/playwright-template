@@ -15,6 +15,7 @@ I need to add a new page/feature to my existing project. Please follow the compr
 **Feature Name**: [REPLACE_WITH_FEATURE_NAME]
 **Page URL/Route**: [REPLACE_WITH_URL]
 **Authentication Required**: [YES/NO]
+**User Permissions**: [REPLACE_WITH_PERMISSION_REQUIREMENTS]
 **Main Functionality**: [REPLACE_WITH_DESCRIPTION]
 **API Endpoints**: [REPLACE_WITH_ENDPOINTS_OR_N/A]
 
@@ -53,7 +54,13 @@ Please implement the following following the manual approach from the guide:
    - Use APIHelpers utility
    - Include proper status code assertions
 
-7. **Skip Accessibility Tests** for now (as noted in the guide)
+7. **Create Permission Tests** (`tests/e2e/[feature-name]-permissions.spec.ts`) - if applicable
+   - Test different user role behaviors (admin vs normal user)
+   - Verify UI elements shown/hidden based on permissions
+   - Test unauthorized access attempts
+   - Include API permission testing
+
+8. **Skip Accessibility Tests** for now (as noted in the guide)
 
 ## 🔧 Technical Requirements:
 
@@ -83,6 +90,7 @@ Please implement this step by step, ensuring each file integrates properly with 
 - Feature Name: Shopping Cart
 - URL: /cart  
 - Auth: YES
+- Permissions: ALL - All authenticated users can access
 - Functionality: View, modify, checkout cart items
 - API: GET /api/cart, POST /api/cart/items, PUT /api/cart/items/:id, DELETE /api/cart/items/:id
 
@@ -90,6 +98,7 @@ Please implement this step by step, ensuring each file integrates properly with 
 - Feature Name: Product Catalog  
 - URL: /products
 - Auth: NO
+- Permissions: N/A - Public access
 - Functionality: Browse, filter, search products
 - API: GET /api/products, GET /api/categories
 
@@ -97,5 +106,22 @@ Please implement this step by step, ensuring each file integrates properly with 
 - Feature Name: User Profile
 - URL: /profile
 - Auth: YES  
+- Permissions: OWNER_ONLY - Users can only access their own profile
 - Functionality: View and edit user information
 - API: GET /api/profile, PUT /api/profile
+
+**Admin Dashboard**:
+- Feature Name: Admin Dashboard
+- URL: /admin
+- Auth: YES
+- Permissions: ADMIN_ONLY - Only admin users can access
+- Functionality: User management, system statistics, admin controls
+- API: GET /api/admin/stats, GET /api/admin/users, PUT /api/admin/users/:id
+
+**Role-Based Feature**:
+- Feature Name: User Management
+- URL: /users
+- Auth: YES
+- Permissions: ROLE_BASED - Admin sees all users with edit/delete, normal users see limited view
+- Functionality: View and manage user accounts with role-specific capabilities
+- API: GET /api/users, PUT /api/users/:id, DELETE /api/users/:id

@@ -65,6 +65,7 @@ tests/
 - **Test Data**: Consider using the existing `DataGenerator` utility for dynamic test data
 - **Database State**: Plan how to handle test data cleanup and setup
 - **Authentication**: Decide if your feature requires authenticated or anonymous access
+- **User Permissions**: Identify if your feature has different behaviors for different user roles (admin vs normal user)
 
 ---
 
@@ -599,6 +600,320 @@ test.describe('Shopping Cart Performance', () => {
 });
 ```
 
+### Step 9: Create Permission-Based Tests (if applicable)
+
+**When to Use**: If your feature has different behaviors based on user roles (admin vs normal user vs guest)
+
+**Location**: `tests/e2e/[feature-name]-permissions.spec.ts`
+
+Permission testing ensures that different user roles see the appropriate UI elements and have access to the correct functionality.
+
+#### 🔐 Permission Testing Strategy
+
+**1. Extend Test Fixtures for Multiple User Types**
+
+First, extend your fixtures to support different user roles:
+
+```typescript
+// src/fixtures/test.fixtures.ts - Add to existing fixtures
+type TestFixtures = {
+  authenticatedPage: Page;
+  adminPage: Page;        // Add admin user fixture
+  normalUserPage: Page;   // Add normal user fixture
+} & PageObjects;
+
+export const test = base.extend<TestFixtures>({
+  // Existing fixtures...
+
+  // Admin user fixture
+  adminPage: async ({ browser }, use) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    
+    // Login as admin user
+    const loginPage = new LoginPage(page);
+    await loginPage.navigate();
+    await loginPage.login(
+      process.env.ADMIN_USERNAME || 'admin@test.com',
+      process.env.ADMIN_PASSWORD || 'admin123'
+    );
+    
+    await use(page);
+    await context.close();
+  },
+
+  // Normal user fixture
+  normalUserPage: async ({ browser }, use) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    
+    // Login as normal user
+    const loginPage = new LoginPage(page);
+    await loginPage.navigate();
+    await loginPage.login(
+      process.env.USER_USERNAME || 'user@test.com',
+      process.env.USER_PASSWORD || 'user123'
+    );
+    
+    await use(page);
+    await context.close();
+  },
+});
+```
+
+**2. Add Permission-Aware Methods to Page Objects**
+
+Update your page object to include permission checking methods:
+
+```typescript
+// src/pages/dashboard.page.ts - Example with permissions
+export class DashboardPage extends BasePage {
+  readonly adminPanel: Locator;
+  readonly userManagement: Locator;
+  readonly normalUserContent: Locator;
+  readonly deleteButton: Locator;
+  readonly editButton: Locator;
+
+  constructor(page: Page) {
+    super(page);
+    this.adminPanel = page.locator('[data-testid="admin-panel"]');
+    this.userManagement = page.locator('[data-testid="user-management"]');
+    this.normalUserContent = page.locator('[data-testid="user-content"]');
+    this.deleteButton = page.locator('[data-testid="delete-button"]');
+    this.editButton = page.locator('[data-testid="edit-button"]');
+  }
+
+  get url(): string {
+    return '/dashboard';
+  }
+
+  // Permission checking methods
+  async verifyAdminElementsVisible(): Promise<void> {
+    await this.expectToBeVisible(this.adminPanel);
+    await this.expectToBeVisible(this.userManagement);
+    await this.expectToBeVisible(this.deleteButton);
+  }
+
+  async verifyAdminElementsHidden(): Promise<void> {
+    await this.expectToBeHidden(this.adminPanel);
+    await this.expectToBeHidden(this.userManagement);
+    await this.expectToBeHidden(this.deleteButton);
+  }
+
+  async verifyNormalUserElements(): Promise<void> {
+    await this.expectToBeVisible(this.normalUserContent);
+    await this.expectToBeVisible(this.editButton);
+  }
+
+  async getVisibleButtonCount(): Promise<number> {
+    return await this.page.locator('[data-testid*="button"]:visible').count();
+  }
+}
+```
+
+**3. Create Permission Tests**
+
+```typescript
+// tests/e2e/dashboard-permissions.spec.ts
+import { test, expect } from '@fixtures/test.fixtures';
+
+test.describe('Dashboard Permissions', () => {
+  
+  test.describe('Admin User Permissions', () => {
+    test('should see all admin elements @smoke', async ({ adminPage }) => {
+      const dashboardPage = new DashboardPage(adminPage);
+      await dashboardPage.navigate();
+      
+      // Verify admin-only elements are visible
+      await dashboardPage.verifyAdminElementsVisible();
+      
+      // Verify admin has access to all functionality
+      await expect(dashboardPage.deleteButton).toBeEnabled();
+      await expect(dashboardPage.userManagement).toBeVisible();
+    });
+
+    test('should have admin menu options', async ({ adminPage }) => {
+      const dashboardPage = new DashboardPage(adminPage);
+      await dashboardPage.navigate();
+      
+      // Check admin has more menu options
+      const buttonCount = await dashboardPage.getVisibleButtonCount();
+      expect(buttonCount).toBeGreaterThan(5); // Admin should see more buttons
+    });
+  });
+
+  test.describe('Normal User Permissions', () => {
+    test('should NOT see admin elements @smoke', async ({ normalUserPage }) => {
+      const dashboardPage = new DashboardPage(normalUserPage);
+      await dashboardPage.navigate();
+      
+      // Verify admin elements are hidden
+      await dashboardPage.verifyAdminElementsHidden();
+      
+      // Verify normal user elements are visible
+      await dashboardPage.verifyNormalUserElements();
+    });
+
+    test('should have limited menu options', async ({ normalUserPage }) => {
+      const dashboardPage = new DashboardPage(normalUserPage);
+      await dashboardPage.navigate();
+      
+      // Check normal user has fewer options
+      const buttonCount = await dashboardPage.getVisibleButtonCount();
+      expect(buttonCount).toBeLessThanOrEqual(3); // Normal user should see fewer buttons
+    });
+
+    test('should not access admin functionality', async ({ normalUserPage }) => {
+      const dashboardPage = new DashboardPage(normalUserPage);
+      await dashboardPage.navigate();
+      
+      // Try to access admin URL directly - should be redirected or blocked
+      await normalUserPage.goto('/admin');
+      await expect(normalUserPage).toHaveURL('/dashboard'); // Redirected back
+    });
+  });
+
+  test.describe('Cross-User Permission Verification', () => {
+    test('should have different UI elements for different users', async ({ adminPage, normalUserPage }) => {
+      const adminDashboard = new DashboardPage(adminPage);
+      const userDashboard = new DashboardPage(normalUserPage);
+      
+      // Navigate both users to dashboard
+      await adminDashboard.navigate();
+      await userDashboard.navigate();
+      
+      // Admin should see admin panel
+      await expect(adminDashboard.adminPanel).toBeVisible();
+      
+      // Normal user should NOT see admin panel
+      await expect(userDashboard.adminPanel).toBeHidden();
+      
+      // Both should see their respective content
+      await expect(adminDashboard.userManagement).toBeVisible();
+      await expect(userDashboard.normalUserContent).toBeVisible();
+    });
+  });
+});
+```
+
+**4. API Permission Tests**
+
+```typescript
+// tests/api/permissions.api.spec.ts
+import { test, expect } from '@playwright/test';
+import { APIHelpers } from '@utils/api.helpers';
+
+test.describe('API Permissions', () => {
+  test('admin should access admin endpoints', async ({ request }) => {
+    const api = new APIHelpers(request, process.env.API_BASE_URL!);
+    
+    // Login as admin and get token
+    const adminLogin = await api.post('/auth/login', {
+      data: {
+        email: process.env.ADMIN_USERNAME!,
+        password: process.env.ADMIN_PASSWORD!
+      }
+    });
+    const adminToken = (await adminLogin.json()).token;
+    
+    // Test admin endpoint access
+    const response = await api.get('/admin/users', {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    
+    expect(response.status()).toBe(200);
+  });
+
+  test('normal user should NOT access admin endpoints', async ({ request }) => {
+    const api = new APIHelpers(request, process.env.API_BASE_URL!);
+    
+    // Login as normal user
+    const userLogin = await api.post('/auth/login', {
+      data: {
+        email: process.env.USER_USERNAME!,
+        password: process.env.USER_PASSWORD!
+      }
+    });
+    const userToken = (await userLogin.json()).token;
+    
+    // Try to access admin endpoint - should be forbidden
+    const response = await api.get('/admin/users', {
+      headers: { Authorization: `Bearer ${userToken}` }
+    });
+    
+    expect(response.status()).toBe(403); // Forbidden
+  });
+});
+```
+
+**5. Visual Permission Tests**
+
+```typescript
+// tests/visual/permissions.visual.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Permission Visual Tests', () => {
+  test('admin dashboard screenshot', async ({ page }) => {
+    // Login as admin
+    await page.goto('/login');
+    await page.fill('[data-testid="username"]', process.env.ADMIN_USERNAME!);
+    await page.fill('[data-testid="password"]', process.env.ADMIN_PASSWORD!);
+    await page.click('[data-testid="login-button"]');
+    
+    await page.goto('/dashboard');
+    
+    await expect(page).toHaveScreenshot('admin-dashboard.png', {
+      fullPage: true,
+      animations: 'disabled'
+    });
+  });
+
+  test('normal user dashboard screenshot', async ({ page }) => {
+    // Login as normal user
+    await page.goto('/login');
+    await page.fill('[data-testid="username"]', process.env.USER_USERNAME!);
+    await page.fill('[data-testid="password"]', process.env.USER_PASSWORD!);
+    await page.click('[data-testid="login-button"]');
+    
+    await page.goto('/dashboard');
+    
+    await expect(page).toHaveScreenshot('user-dashboard.png', {
+      fullPage: true,
+      animations: 'disabled'
+    });
+  });
+});
+```
+
+#### 🔧 Environment Variables for Permission Testing
+
+Add these to your `.env.local` file:
+
+```bash
+# Admin user credentials
+ADMIN_USERNAME=admin@test.com
+ADMIN_PASSWORD=admin123
+
+# Normal user credentials  
+USER_USERNAME=user@test.com
+USER_PASSWORD=user123
+
+# Guest user (if applicable)
+GUEST_USERNAME=guest@test.com
+GUEST_PASSWORD=guest123
+```
+
+#### 📋 Permission Testing Checklist
+
+- [ ] **UI Elements**: Verify correct elements shown/hidden for each role
+- [ ] **Functionality Access**: Test role-specific feature availability
+- [ ] **Direct URL Access**: Test unauthorized direct navigation attempts
+- [ ] **API Endpoints**: Verify backend permission enforcement
+- [ ] **Button States**: Check enabled/disabled states per role
+- [ ] **Menu Options**: Verify role-appropriate menu items
+- [ ] **Data Visibility**: Ensure users only see their authorized data
+- [ ] **Visual Differences**: Capture screenshots for different roles
+
 ---
 
 ## Playwright MCP Approach - AI-Assisted Test Generation
@@ -726,6 +1041,32 @@ Create/update `.vscode/settings.json`:
 3. **Mobile Testing**:
    ```
    Create mobile-specific tests for the cart feature, testing both iPhone and Android viewports
+   ```
+
+4. **Permission-Based Testing**:
+   ```
+   I need to test permission-based functionality for my application.
+   
+   Please:
+   1. First, explore https://my-app.com/dashboard as an admin user (use admin@test.com / admin123)
+   2. Then explore the same page as a normal user (use user@test.com / user123)
+   3. Identify the differences in UI elements, buttons, and available functionality
+   4. Generate page object methods that can verify permission-specific elements
+   5. Create comprehensive permission tests covering:
+      - Admin-only elements and functionality
+      - Normal user restrictions
+      - Cross-user verification tests
+      - API permission tests
+   6. Include visual tests showing different permission states
+   
+   Focus on:
+   - Elements that are visible/hidden based on role
+   - Buttons that are enabled/disabled for different users
+   - Menu options that change based on permissions
+   - Direct URL access restrictions
+   - API endpoint access controls
+   
+   Generate fixtures for different user types and ensure all tests follow our existing patterns.
    ```
 
 #### MCP Integration with Existing Template
@@ -950,6 +1291,62 @@ test.afterEach(async ({ page }) => {
 });
 ```
 
+#### Permission Testing Issues
+
+**Problem**: Permission tests failing intermittently
+```typescript
+// ❌ Flaky - timing issues with login
+test('admin should see admin panel', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('[data-testid="username"]', 'admin@test.com');
+  await page.click('[data-testid="login-button"]');
+  await page.goto('/dashboard'); // Too fast!
+  await expect(page.locator('[data-testid="admin-panel"]')).toBeVisible();
+});
+
+// ✅ Robust - wait for authentication
+test('admin should see admin panel', async ({ adminPage }) => {
+  const dashboardPage = new DashboardPage(adminPage);
+  await dashboardPage.navigate();
+  await dashboardPage.waitForAuthentication(); // Custom method
+  await dashboardPage.verifyAdminElementsVisible();
+});
+```
+
+**Problem**: User fixtures not working
+```bash
+# Add missing environment variables
+ADMIN_USERNAME=admin@test.com
+ADMIN_PASSWORD=admin123
+USER_USERNAME=user@test.com
+USER_PASSWORD=user123
+```
+
+**Problem**: Permission elements not found
+```typescript
+// ❌ Elements might not exist for this user role
+await expect(page.locator('[data-testid="admin-panel"]')).toBeVisible();
+
+// ✅ Check if user should see the element first
+if (userRole === 'admin') {
+  await expect(page.locator('[data-testid="admin-panel"]')).toBeVisible();
+} else {
+  await expect(page.locator('[data-testid="admin-panel"]')).toBeHidden();
+}
+```
+
+**Problem**: API permission tests failing
+```typescript
+// ❌ Missing authentication token
+const response = await api.get('/admin/users');
+
+// ✅ Include proper authentication
+const token = await getAuthToken('admin');
+const response = await api.get('/admin/users', {
+  headers: { Authorization: `Bearer ${token}` }
+});
+```
+
 #### Docker Integration Issues
 
 If your tests need to run in Docker, update the Docker command to include your new tests:
@@ -1081,6 +1478,119 @@ Your new tests will appear in all existing reports:
      // Reset state for each test
      await page.goto('/cart');
      await page.evaluate(() => localStorage.clear());
+   });
+   ```
+
+### 🔐 Permission Testing Best Practices
+
+1. **Use Dedicated User Fixtures**: Create separate fixtures for different user roles
+   ```typescript
+   // ✅ Dedicated fixtures for clear separation
+   test('admin functionality', async ({ adminPage }) => {
+     // Test admin-specific features
+   });
+   
+   test('user restrictions', async ({ normalUserPage }) => {
+     // Test normal user limitations
+   });
+   ```
+
+2. **Test Both Positive and Negative Cases**: Verify what users CAN and CANNOT do
+   ```typescript
+   test.describe('Dashboard Permissions', () => {
+     test('admin should see admin panel @smoke', async ({ adminPage }) => {
+       // Positive: Admin sees admin elements
+       await expect(adminDashboard.adminPanel).toBeVisible();
+     });
+     
+     test('normal user should NOT see admin panel @smoke', async ({ normalUserPage }) => {
+       // Negative: Normal user doesn't see admin elements
+       await expect(userDashboard.adminPanel).toBeHidden();
+     });
+   });
+   ```
+
+3. **Create Permission-Aware Page Objects**: Include role-checking methods
+   ```typescript
+   export class DashboardPage extends BasePage {
+     async verifyUserPermissions(role: 'admin' | 'user'): Promise<void> {
+       if (role === 'admin') {
+         await this.verifyAdminElementsVisible();
+       } else {
+         await this.verifyAdminElementsHidden();
+         await this.verifyNormalUserElements();
+       }
+     }
+   }
+   ```
+
+4. **Test API Permissions Alongside UI**: Ensure backend matches frontend restrictions
+   ```typescript
+   test.describe('Complete Permission Testing', () => {
+     test('admin permissions - UI and API', async ({ adminPage, request }) => {
+       // Test UI permissions
+       const dashboard = new DashboardPage(adminPage);
+       await dashboard.verifyAdminElementsVisible();
+       
+       // Test corresponding API permissions
+       const api = new APIHelpers(request, process.env.API_BASE_URL!);
+       const response = await api.get('/admin/users', { 
+         headers: { Authorization: `Bearer ${adminToken}` }
+       });
+       expect(response.status()).toBe(200);
+     });
+   });
+   ```
+
+5. **Use Environment Variables for Test Credentials**: Keep credentials configurable
+   ```typescript
+   // ✅ Configurable test users
+   const adminCredentials = {
+     username: process.env.ADMIN_USERNAME || 'admin@test.com',
+     password: process.env.ADMIN_PASSWORD || 'admin123'
+   };
+   ```
+
+6. **Test Direct URL Access**: Verify unauthorized navigation is blocked
+   ```typescript
+   test('should redirect unauthorized users', async ({ normalUserPage }) => {
+     // Try to access admin URL directly
+     await normalUserPage.goto('/admin/users');
+     
+     // Should be redirected to dashboard or login
+     await expect(normalUserPage).toHaveURL(/\/(dashboard|login)/);
+   });
+   ```
+
+7. **Include Visual Tests for Different Roles**: Capture permission differences visually
+   ```typescript
+   test.describe('Permission Visual Regression', () => {
+     test('admin dashboard appearance', async ({ adminPage }) => {
+       await adminPage.goto('/dashboard');
+       await expect(adminPage).toHaveScreenshot('admin-dashboard.png');
+     });
+     
+     test('user dashboard appearance', async ({ normalUserPage }) => {
+       await normalUserPage.goto('/dashboard');
+       await expect(normalUserPage).toHaveScreenshot('user-dashboard.png');
+     });
+   });
+   ```
+
+8. **Use Cross-User Verification Tests**: Compare different users in same test
+   ```typescript
+   test('different users see different elements', async ({ adminPage, normalUserPage }) => {
+     const adminDashboard = new DashboardPage(adminPage);
+     const userDashboard = new DashboardPage(normalUserPage);
+     
+     await Promise.all([
+       adminDashboard.navigate(),
+       userDashboard.navigate()
+     ]);
+     
+     // Verify differences
+     await expect(adminDashboard.adminPanel).toBeVisible();
+     await expect(userDashboard.adminPanel).toBeHidden();
    });
    ```
 

@@ -14,6 +14,7 @@ I need to add a new page/feature to my Playwright template project. Please follo
 **Feature Name**: [FEATURE_NAME]
 **Page URL/Route**: [PAGE_URL]
 **Authentication Required**: [YES/NO]
+**User Permissions**: [PERMISSION_REQUIREMENTS]
 **Main Functionality**: [FUNCTIONALITY_DESCRIPTION]
 **API Endpoints**: [API_ENDPOINTS_IF_ANY]
 
@@ -52,7 +53,13 @@ Please implement the following following the manual approach from the guide:
    - Use APIHelpers utility
    - Include proper status code assertions
 
-7. **Skip Accessibility Tests** for now (as noted in the guide)
+7. **Create Permission Tests** (`tests/e2e/[feature-name]-permissions.spec.ts`) - if applicable
+   - Test different user role behaviors (admin vs normal user)
+   - Verify UI elements shown/hidden based on permissions
+   - Test unauthorized access attempts
+   - Include API permission testing
+
+8. **Skip Accessibility Tests** for now (as noted in the guide)
 
 ## 🔧 Technical Requirements:
 
@@ -109,6 +116,16 @@ When using this prompt, replace the following placeholders:
   - `"YES"` - Page requires user to be logged in
   - `"NO"` - Page is accessible to anonymous users
 
+### **[PERMISSION_REQUIREMENTS]**
+- **User Permissions**: Specify what user roles can access this feature
+- **Examples**:
+  - `"ALL"` - All authenticated users can access
+  - `"ADMIN_ONLY"` - Only admin users can access
+  - `"ADMIN_AND_MANAGERS"` - Admin and manager roles can access
+  - `"ROLE_BASED - Admin sees full functionality, normal users see limited features"`
+  - `"OWNER_ONLY"` - Only resource owners can access (e.g., user can only edit their own profile)
+  - `"N/A"` - No special permissions (public or basic auth only)
+
 ### **[FUNCTIONALITY_DESCRIPTION]**
 - **Format**: Clear description of what the page does
 - **Examples**:
@@ -131,6 +148,7 @@ When using this prompt, replace the following placeholders:
 **Feature Name**: Shopping Cart
 **Page URL/Route**: /cart
 **Authentication Required**: YES
+**User Permissions**: ALL - All authenticated users can access their cart
 **Main Functionality**: Allows users to view, modify quantities, remove items, and proceed to checkout for items in their shopping cart
 **API Endpoints**: GET /api/cart, POST /api/cart/items, PUT /api/cart/items/:id, DELETE /api/cart/items/:id
 ```
@@ -140,6 +158,7 @@ When using this prompt, replace the following placeholders:
 **Feature Name**: Product Catalog
 **Page URL/Route**: /products
 **Authentication Required**: NO
+**User Permissions**: N/A - Public access, no special permissions
 **Main Functionality**: Displays paginated list of products with filtering, sorting, and search capabilities
 **API Endpoints**: GET /api/products, GET /api/categories, GET /api/products/search
 ```
@@ -149,8 +168,29 @@ When using this prompt, replace the following placeholders:
 **Feature Name**: User Settings
 **Page URL/Route**: /settings
 **Authentication Required**: YES
+**User Permissions**: OWNER_ONLY - Users can only access their own settings
 **Main Functionality**: User account settings including profile information, password change, notification preferences, and account deletion
 **API Endpoints**: GET /api/user/settings, PUT /api/user/settings, PUT /api/user/password, DELETE /api/user/account
+```
+
+### Example 4: Admin Dashboard Feature
+```
+**Feature Name**: Admin Dashboard
+**Page URL/Route**: /admin/dashboard
+**Authentication Required**: YES
+**User Permissions**: ADMIN_ONLY - Only admin users can access
+**Main Functionality**: Admin dashboard with user management, system statistics, and administrative controls
+**API Endpoints**: GET /api/admin/stats, GET /api/admin/users, PUT /api/admin/users/:id, DELETE /api/admin/users/:id
+```
+
+### Example 5: User Profile Feature (Role-Based)
+```
+**Feature Name**: User Profile
+**Page URL/Route**: /profile/:id
+**Authentication Required**: YES
+**User Permissions**: ROLE_BASED - Admin can view/edit any profile, normal users can only view/edit their own
+**Main Functionality**: Display and edit user profile information with different capabilities based on user role
+**API Endpoints**: GET /api/users/:id, PUT /api/users/:id, GET /api/users/:id/permissions
 ```
 
 ## 💡 Tips for Success
@@ -172,6 +212,9 @@ After using the prompt, verify:
 - [ ] Tests follow project conventions and include appropriate tags
 - [ ] API tests cover all endpoints (if applicable)
 - [ ] Visual tests capture key states
+- [ ] Permission tests verify role-based access controls (if applicable)
+- [ ] User fixtures configured for different roles (if applicable)
+- [ ] Environment variables set for test user credentials (if applicable)
 - [ ] Code follows existing patterns and style
 
 ---

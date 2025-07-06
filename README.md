@@ -440,8 +440,9 @@ This template includes comprehensive guides for adding new pages and features:
 The guides cover:
 - **Manual Implementation**: Step-by-step page object and test creation
 - **AI-Assisted Generation**: MCP setup and automated exploration
+- **Permission Testing**: Role-based testing for admin vs normal user scenarios
 - Page Object Model creation and test fixtures integration
-- E2E, Visual, and API test generation
+- E2E, Visual, API, and Permission test generation
 - Project convention alignment and troubleshooting
 
 ## 🆘 Support

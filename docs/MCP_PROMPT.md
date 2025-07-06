@@ -87,6 +87,7 @@ I need to explore and generate comprehensive tests for a new feature in my proje
 **Feature URL**: [REPLACE_WITH_FULL_URL]
 **Feature Name**: [REPLACE_WITH_FEATURE_NAME]
 **Authentication Required**: [YES/NO - if YES, provide login credentials or instructions]
+**User Permissions**: [PERMISSION_REQUIREMENTS - describe different user roles if applicable]
 
 ## 📋 Exploration Instructions:
 
@@ -98,13 +99,21 @@ Please explore the target URL and:
    - Navigate through different states
    - Identify user workflows and edge cases
 
-2. **Document Your Findings**
+2. **Explore Different User Permissions** (if applicable)
+   - Test the feature with different user roles (admin, normal user, guest)
+   - Document what elements are visible/hidden for each role
+   - Note functionality that's enabled/disabled based on permissions
+   - Test direct URL access attempts for unauthorized users
+   - Identify role-specific workflows and restrictions
+
+3. **Document Your Findings**
    - List all interactive elements and their selectors
    - Identify user workflows (happy path and edge cases)
    - Note any API calls being made
    - Capture different page states
+   - Document permission-based differences between user roles
 
-3. **Generate Complete Implementation** following our project patterns:
+4. **Generate Complete Implementation** following our project patterns:
 
    **Page Object Class** (`src/pages/[feature-name].page.ts`):
    - Extend BasePage from existing template
@@ -136,6 +145,14 @@ Please explore the target URL and:
    - Based on API calls you observed during exploration
    - Use APIHelpers utility from the project
    - Test CRUD operations where applicable
+
+   **Permission Tests** (`tests/e2e/[feature-name]-permissions.spec.ts`) - if applicable:
+   - Based on role differences you discovered during exploration
+   - Test different user role behaviors (admin vs normal user)
+   - Verify UI elements shown/hidden based on permissions
+   - Test unauthorized access attempts and redirects
+   - Include API permission testing
+   - Generate user fixtures for different roles (adminPage, normalUserPage)
 
 ## 🔧 Technical Requirements:
 
@@ -192,6 +209,15 @@ Replace these placeholders when using the prompt:
   - `"NO - publicly accessible"`
   - `"YES - please use the login fixture from our existing tests"`
 
+### **[PERMISSION_REQUIREMENTS]**
+- **Format**: Describe user roles and permission differences
+- **Examples**:
+  - `"ALL - All authenticated users have same access"`
+  - `"ADMIN_ONLY - Only admin users can access this feature"`
+  - `"ROLE_BASED - Admin users see full functionality, normal users see limited view"`
+  - `"OWNER_ONLY - Users can only access their own data"`
+  - `"N/A - No special permissions required"`
+
 ## 💡 MCP Usage Examples
 
 ### Example 1: E-commerce Cart
@@ -199,6 +225,7 @@ Replace these placeholders when using the prompt:
 **Feature URL**: https://mystore.com/cart
 **Feature Name**: Shopping Cart
 **Authentication Required**: YES - use test credentials: shopper@test.com / test123
+**User Permissions**: ALL - All authenticated users can access their cart
 ```
 
 ### Example 2: Public Product Listing
@@ -206,6 +233,7 @@ Replace these placeholders when using the prompt:
 **Feature URL**: https://mystore.com/products
 **Feature Name**: Product Catalog
 **Authentication Required**: NO - publicly accessible
+**User Permissions**: N/A - No special permissions required
 ```
 
 ### Example 3: User Dashboard
@@ -213,6 +241,23 @@ Replace these placeholders when using the prompt:
 **Feature URL**: http://localhost:3000/dashboard
 **Feature Name**: User Dashboard  
 **Authentication Required**: YES - please use the existing authenticated fixtures
+**User Permissions**: ALL - All authenticated users have access to their dashboard
+```
+
+### Example 4: Admin Panel
+```
+**Feature URL**: https://myapp.com/admin
+**Feature Name**: Admin Panel
+**Authentication Required**: YES - use admin credentials: admin@test.com / admin123
+**User Permissions**: ADMIN_ONLY - Only admin users can access this feature
+```
+
+### Example 5: Role-Based Feature
+```
+**Feature URL**: https://myapp.com/users
+**Feature Name**: User Management
+**Authentication Required**: YES - test with both admin@test.com / admin123 and user@test.com / user123
+**User Permissions**: ROLE_BASED - Admin users can view/edit all users, normal users can only view/edit their own profile
 ```
 
 ## 🔄 MCP vs Manual Approach
