@@ -69,43 +69,20 @@ const config = defineConfig({
   projects: [
     // Desktop browsers
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    
-    // Mobile browsers
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 13'] },
-    },
-    
-    // Branded browsers
-    {
-      name: 'edge',
-      use: { 
-        ...devices['Desktop Edge'], 
-        channel: 'msedge' 
-      },
-    },
-    {
       name: 'chrome',
       use: { 
         ...devices['Desktop Chrome'], 
         channel: 'chrome' 
       },
     },
+    // {
+    //   name: 'firefox',
+    //   use: { ...devices['Desktop Firefox'] },
+    // },
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
     
     // API testing project
     {
