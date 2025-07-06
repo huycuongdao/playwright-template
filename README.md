@@ -139,6 +139,7 @@ npm run test:mobile
 # Run specific test types
 npm run test:api
 npm run test:visual
+npm run test:visual:update  # Create/update visual baselines
 npm run test:a11y
 npm run test:smoke
 npm run test:regression
@@ -162,6 +163,12 @@ npx playwright test --trace on
 
 # Generate test code
 npm run codegen
+
+# Run single test by name
+npx playwright test -g "test name"
+
+# Run single test by file and line number
+npx playwright test tests/e2e/login.spec.ts:25
 ```
 
 ## 📊 Test Reports
@@ -313,16 +320,73 @@ test('should create user', async ({ request }) => {
 
 ## 🎨 Visual Testing
 
+Visual regression testing compares screenshots to detect UI changes.
+
+> **📖 [Complete Visual Testing Guide](docs/VISUAL_TESTING_GUIDE.md)** - Comprehensive guide with troubleshooting and best practices
+
+### First Time Setup (IMPORTANT!)
+
+**⚠️ Before running visual tests for the first time, you must create baseline snapshots:**
+
+```bash
+# Create initial baseline screenshots
+npm run test:visual:update
+
+# Or for specific test files
+npx playwright test tests/visual/login.visual.spec.ts --project=visual --update-snapshots
+```
+
+### Visual Testing Workflow
+
+1. **Create baselines** (first time only):
+   ```bash
+   npm run test:visual:update
+   ```
+
+2. **Run visual tests** (compares against baselines):
+   ```bash
+   npm run test:visual
+   ```
+
+3. **Update baselines** (when UI changes are intentional):
+   ```bash
+   npm run test:visual:update
+   ```
+
+4. **View differences** (when tests fail):
+   ```bash
+   npm run report
+   ```
+
+### Common Visual Test Scenarios
+
+- **SSL Certificate Errors**: Set `ignoreHTTPSErrors: true` in visual project config
+- **Dynamic Content**: Use `mask` option to hide changing elements (timestamps, CSRF tokens)
+- **Responsive Testing**: Test different viewport sizes (mobile, tablet, desktop)
+- **Theme Testing**: Test different visual themes (dark mode, high contrast)
+
+### Example Visual Test
+
 ```typescript
-// tests/visual/homepage.visual.spec.ts
-test('should match homepage screenshot', async ({ page }) => {
-  await page.goto('/');
-  await expect(page).toHaveScreenshot('homepage.png', {
+// tests/visual/login.visual.spec.ts
+test('should match login page screenshot', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page).toHaveScreenshot('login-page.png', {
     fullPage: true,
-    animations: 'disabled'
+    mask: [
+      // Hide dynamic content
+      page.locator('input[name="_csrf"]'),
+    ],
   });
 });
 ```
+
+### Troubleshooting Visual Tests
+
+- **Tests fail on first run**: You need to create baselines with `--update-snapshots`
+- **Small pixel differences**: Increase threshold in `playwright.config.ts`
+- **Font rendering differences**: Use web fonts instead of system fonts
+- **Dynamic content**: Use `mask` option to hide changing elements
 
 ## ♿ Accessibility Testing
 

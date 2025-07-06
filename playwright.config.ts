@@ -104,7 +104,7 @@ const config = defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         // Visual testing specific settings
-        ignoreHTTPSErrors: false,
+        ignoreHTTPSErrors: true,
       },
     },
     
