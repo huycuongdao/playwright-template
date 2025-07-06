@@ -1388,6 +1388,32 @@ npm run typecheck
 # 3. Ensure all methods return proper types
 ```
 
+### 📁 Managing Exploration Artifacts
+
+When using MCP or manual exploration scripts, artifacts should be organized properly:
+
+```bash
+# ✅ Correct organization
+exploration-artifacts/           # Screenshots, exploration data
+├── feature-name-initial.png
+├── feature-name-filled.png
+└── exploration-notes.md
+
+# ❌ Avoid placing in root
+login_page_initial.png          # Don't leave in project root
+explore-feature.js              # Don't leave exploration scripts
+
+# Clean up after exploration
+npm run clean:reports           # Cleans test artifacts
+rm -rf exploration-artifacts/   # Remove when no longer needed
+```
+
+**Artifact Guidelines:**
+- Move exploration screenshots to `exploration-artifacts/` directory
+- Remove temporary exploration scripts after test generation
+- Don't commit exploration artifacts to version control
+- Use clear, descriptive names for any artifacts you keep
+
 ### 🔧 Integration with Existing CI/CD
 
 Your new tests will automatically be included in the existing GitHub Actions workflows. If you want feature-specific CI runs:

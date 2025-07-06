@@ -58,3 +58,8 @@ out/
 auth.json
 state.json
 storageState.json
+
+# Exploration artifacts
+exploration-artifacts/
+*.exploration.js
+*.exploration.ts

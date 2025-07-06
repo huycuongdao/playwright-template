@@ -277,10 +277,36 @@ Replace these placeholders when using the prompt:
 ## 🚀 After MCP Generation
 
 1. **Review Generated Code**: Ensure it follows project patterns
-2. **Run TypeScript Check**: `npm run typecheck`
-3. **Run Linting**: `npm run lint`
-4. **Test Execution**: `npm test` to verify everything works
-5. **Refine If Needed**: Add any missing edge cases or cleanup
+2. **Organize Artifacts**: Move any generated screenshots or files to proper directories:
+   - **Screenshots/Images**: Move to `exploration-artifacts/` directory
+   - **Temporary Scripts**: Clean up any exploration scripts created during the process
+   - **Test Artifacts**: Ensure visual test screenshots go in proper test-results directories
+3. **Run TypeScript Check**: `npm run typecheck`
+4. **Run Linting**: `npm run lint`
+5. **Test Execution**: `npm test` to verify everything works
+6. **Clean Up**: Remove any temporary files created during exploration
+7. **Refine If Needed**: Add any missing edge cases or cleanup
+
+## 📁 Artifact Management
+
+When MCP explores applications, it may create artifacts like screenshots. Follow these guidelines:
+
+### ✅ Proper File Organization:
+```
+project-root/
+├── exploration-artifacts/     # Screenshots and exploration data
+│   ├── login_page_initial.png
+│   ├── before_login.png
+│   └── after_login.png
+├── test-results/             # Test execution artifacts (auto-generated)
+├── playwright-report/        # Test reports (auto-generated)
+└── allure-results/          # Allure reporting artifacts (auto-generated)
+```
+
+### ❌ Avoid:
+- Placing screenshots in project root
+- Leaving temporary exploration scripts in main directories
+- Committing exploration artifacts to git (add to .gitignore if needed)
 
 ---
 
